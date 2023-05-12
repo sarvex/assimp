@@ -290,11 +290,12 @@ def build_and_install_transcoder_dependencies():
   fs_shared_build = os.path.join(DRACO_SHARED_BUILD_PATH, '_fs')
   pathlib.Path(fs_shared_build).mkdir(parents=True, exist_ok=True)
   os.chdir(fs_shared_build)
-  cmake_args = []
-  cmake_args.append(f'-DCMAKE_INSTALL_PREFIX={DRACO_SHARED_INSTALL_PATH}')
-  cmake_args.append('-DBUILD_SHARED_LIBS=ON')
-  cmake_args.append('-DGHC_FILESYSTEM_BUILD_TESTING=OFF')
-  cmake_args.append('-DGHC_FILESYSTEM_BUILD_EXAMPLES=OFF')
+  cmake_args = [
+      f'-DCMAKE_INSTALL_PREFIX={DRACO_SHARED_INSTALL_PATH}',
+      '-DBUILD_SHARED_LIBS=ON',
+      '-DGHC_FILESYSTEM_BUILD_TESTING=OFF',
+      '-DGHC_FILESYSTEM_BUILD_EXAMPLES=OFF',
+  ]
   cmake_configure(source_path=fs_submodule_path, cmake_args=cmake_args)
   cmake_build(cmake_args=['--target install'])
 
@@ -303,10 +304,12 @@ def build_and_install_transcoder_dependencies():
   pathlib.Path(fs_static_build).mkdir(parents=True, exist_ok=True)
   os.chdir(fs_static_build)
   cmake_args = []
-  cmake_args.append(f'-DCMAKE_INSTALL_PREFIX={DRACO_SHARED_INSTALL_PATH}')
-  cmake_args.append('-DBUILD_SHARED_LIBS=OFF')
-  cmake_args.append('-DGHC_FILESYSTEM_BUILD_TESTING=OFF')
-  cmake_args.append('-DGHC_FILESYSTEM_BUILD_EXAMPLES=OFF')
+  cmake_args.extend((
+      f'-DCMAKE_INSTALL_PREFIX={DRACO_SHARED_INSTALL_PATH}',
+      '-DBUILD_SHARED_LIBS=OFF',
+      '-DGHC_FILESYSTEM_BUILD_TESTING=OFF',
+      '-DGHC_FILESYSTEM_BUILD_EXAMPLES=OFF',
+  ))
   cmake_configure(source_path=fs_submodule_path, cmake_args=cmake_args)
   cmake_build(cmake_args=['--target install'])
 
@@ -321,8 +324,10 @@ def build_and_install_transcoder_dependencies():
   pathlib.Path(tinygltf_shared_build).mkdir(parents=True, exist_ok=True)
   os.chdir(tinygltf_shared_build)
   cmake_args = []
-  cmake_args.append(f'-DCMAKE_INSTALL_PREFIX={DRACO_SHARED_INSTALL_PATH}')
-  cmake_args.append('-DTINYGLTF_BUILD_EXAMPLES=OFF')
+  cmake_args.extend((
+      f'-DCMAKE_INSTALL_PREFIX={DRACO_SHARED_INSTALL_PATH}',
+      '-DTINYGLTF_BUILD_EXAMPLES=OFF',
+  ))
   cmake_configure(source_path=tinygltf_submodule_path, cmake_args=cmake_args)
   cmake_build(cmake_args=['--target install'])
 
@@ -331,8 +336,10 @@ def build_and_install_transcoder_dependencies():
   pathlib.Path(tinygltf_static_build).mkdir(parents=True, exist_ok=True)
   os.chdir(tinygltf_static_build)
   cmake_args = []
-  cmake_args.append(f'-DCMAKE_INSTALL_PREFIX={DRACO_STATIC_INSTALL_PATH}')
-  cmake_args.append('-DTINYGLTF_BUILD_EXAMPLES=OFF')
+  cmake_args.extend((
+      f'-DCMAKE_INSTALL_PREFIX={DRACO_STATIC_INSTALL_PATH}',
+      '-DTINYGLTF_BUILD_EXAMPLES=OFF',
+  ))
   cmake_configure(source_path=tinygltf_submodule_path, cmake_args=cmake_args)
   cmake_build(cmake_args=['--target install'])
 
@@ -349,9 +356,10 @@ def build_and_install_draco():
   # Build and install Draco in shared library config for the current host
   # machine.
   os.chdir(DRACO_SHARED_BUILD_PATH)
-  cmake_args = []
-  cmake_args.append(f'-DCMAKE_INSTALL_PREFIX={DRACO_SHARED_INSTALL_PATH}')
-  cmake_args.append('-DBUILD_SHARED_LIBS=ON')
+  cmake_args = [
+      f'-DCMAKE_INSTALL_PREFIX={DRACO_SHARED_INSTALL_PATH}',
+      '-DBUILD_SHARED_LIBS=ON',
+  ]
   if ENABLE_TRANSCODER:
     cmake_args.append('-DDRACO_TRANSCODER_SUPPORTED=ON')
   cmake_configure(source_path=DRACO_SOURCES_PATH, cmake_args=cmake_args)
@@ -359,9 +367,10 @@ def build_and_install_draco():
 
   # Build and install Draco in the static config for the current host machine.
   os.chdir(DRACO_STATIC_BUILD_PATH)
-  cmake_args = []
-  cmake_args.append(f'-DCMAKE_INSTALL_PREFIX={DRACO_STATIC_INSTALL_PATH}')
-  cmake_args.append('-DBUILD_SHARED_LIBS=OFF')
+  cmake_args = [
+      f'-DCMAKE_INSTALL_PREFIX={DRACO_STATIC_INSTALL_PATH}',
+      '-DBUILD_SHARED_LIBS=OFF',
+  ]
   if ENABLE_TRANSCODER:
     cmake_args.append('-DDRACO_TRANSCODER_SUPPORTED=ON')
   cmake_configure(source_path=DRACO_SOURCES_PATH, cmake_args=cmake_args)
@@ -376,19 +385,21 @@ def build_test_project():
 
   # Configure the test project against draco shared and build it.
   os.chdir(TEST_SHARED_BUILD_PATH)
-  cmake_args = []
-  cmake_args.append(f'-DCMAKE_INSTALL_PREFIX={TEST_SHARED_INSTALL_PATH}')
-  cmake_args.append(f'-DCMAKE_PREFIX_PATH={DRACO_SHARED_INSTALL_PATH}')
-  cmake_args.append(f'-DCMAKE_INSTALL_RPATH={DRACO_SHARED_INSTALL_LIB_PATH}')
+  cmake_args = [
+      f'-DCMAKE_INSTALL_PREFIX={TEST_SHARED_INSTALL_PATH}',
+      f'-DCMAKE_PREFIX_PATH={DRACO_SHARED_INSTALL_PATH}',
+      f'-DCMAKE_INSTALL_RPATH={DRACO_SHARED_INSTALL_LIB_PATH}',
+  ]
   cmake_configure(source_path=f'{TEST_SOURCES_PATH}', cmake_args=cmake_args)
   cmake_build(cmake_args=['--target install'])
   run_install_check(TEST_SHARED_INSTALL_PATH)
 
   # Configure the test project against draco static and build it.
   os.chdir(TEST_STATIC_BUILD_PATH)
-  cmake_args = []
-  cmake_args.append(f'-DCMAKE_INSTALL_PREFIX={TEST_STATIC_INSTALL_PATH}')
-  cmake_args.append(f'-DCMAKE_PREFIX_PATH={DRACO_STATIC_INSTALL_PATH}')
+  cmake_args = [
+      f'-DCMAKE_INSTALL_PREFIX={TEST_STATIC_INSTALL_PATH}',
+      f'-DCMAKE_PREFIX_PATH={DRACO_STATIC_INSTALL_PATH}',
+  ]
   cmake_configure(source_path=f'{TEST_SOURCES_PATH}', cmake_args=cmake_args)
   cmake_build(cmake_args=['--target install'])
   run_install_check(TEST_STATIC_INSTALL_PATH)

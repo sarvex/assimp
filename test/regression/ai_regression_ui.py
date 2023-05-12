@@ -58,12 +58,12 @@ def log( sev, msg ):
     """
     logEntry = ""
     if sev == 0:
-        logEntry = logEntry + "[INFO]: "
+        logEntry += "[INFO]: "
     elif sev == 1:
-        logEntry = logEntry + "[WARN]: "
+        logEntry += "[WARN]: "
     elif sev == 2:
-        logEntry = logEntry + "[ERR] : "
-    logEntry = logEntry + str( msg )
+        logEntry += "[ERR] : "
+    logEntry += str( msg )
     print( logEntry )
 
 # -------------------------------------------------------------------------------
@@ -143,11 +143,11 @@ class VersionDialog( BaseDialog ):
         exe = run.getEnvVar( "assimp_path" )
         if len( exe ) != 0:
             command = [exe, "version" ]
-            log( INFO, "command = " + str(command))
+            log(INFO, f"command = {command}")
             stdout = subprocess.check_output(command)
             for line in stdout.splitlines():
                 pos = str(line).find( "Version" )
-                if -1 != pos:
+                if pos != -1:
                     version = line
         Label(master, text=version).pack()
 
@@ -169,14 +169,14 @@ class SetupDialog( BaseDialog ):
 
     def apply(self):
         exe = str( self.e1.get() )
-        if len( exe )  == 0:
+        if not exe:
             return 0
         if os.path.isfile( exe ):
-            log( INFO, "Set executable at " + exe)
+            log(INFO, f"Set executable at {exe}")
             self.assimp_bin_path = exe
             run.setEnvVar("assimp_path", self.assimp_bin_path)
         else:
-            log( ERROR, "Executable not found at "+exe )
+            log(ERROR, f"Executable not found at {exe}")
         return 0
 
 # -------------------------------------------------------------------------------
@@ -215,7 +215,7 @@ class RegDialog( object ):
             return 1
         exe = "python"
         command = [ exe, "gen_db.py", assimp_exe ]
-        log(INFO, "command = " + str(command))
+        log(INFO, f"command = {command}")
         stdout = subprocess.call(command)
 
         log(INFO, stdout)
@@ -227,7 +227,7 @@ class RegDialog( object ):
         
     def open_log(self):
         command = [ self.editor, "../results/run_regression_suite_output.txt", ]
-        log(INFO, "command = " + str( command ) )
+        log(INFO, f"command = {command}")
         r = subprocess.call(command)
         return 0
 
@@ -282,11 +282,8 @@ def getDefaultExecutable():
 
 # -------------------------------------------------------------------------------
 if __name__ == "__main__":
-    if len(sys.argv) > 1:
-        assimp_bin_path = sys.argv[1]
-    else:
-        assimp_bin_path = getDefaultExecutable()
-    log( INFO, 'Using assimp binary: ' + assimp_bin_path )
+    assimp_bin_path = sys.argv[1] if len(sys.argv) > 1 else getDefaultExecutable()
+    log(INFO, f'Using assimp binary: {assimp_bin_path}')
     dlg = RegDialog(assimp_bin_path)
     dlg.initUi()
    

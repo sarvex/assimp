@@ -46,6 +46,7 @@ This script is meant to be executed in the source tree, directly from
 port/PyAssimp/gen
 """
 
+
 import os
 import re
 
@@ -89,8 +90,6 @@ for line in enumText.split('\n'):
   text += RErpcom.sub('# \g<line>', line) + '\n'
 text = RErmifdef.sub('', text)
 
-file = open('material.py', 'w')
-file.write(text)
-file.close()
-
+with open('material.py', 'w') as file:
+    file.write(text)
 print("Generation done. You can now review the file 'material.py' and merge it.")

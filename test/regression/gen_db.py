@@ -86,19 +86,19 @@ configs for an IDE, make sure to build the assimp_cmd project.
 # -------------------------------------------------------------------------------
 def process_dir(d, outfile, file_filter):
     """ Generate small dump records for all files in 'd' """
-    print("Processing directory " + d)
+    print(f"Processing directory {d}")
 
     num = 0
     for f in os.listdir(d):
         fullp = os.path.join(d, f)
-        if os.path.isdir(fullp) and not f == ".svn":
+        if os.path.isdir(fullp) and f != ".svn":
             num += process_dir(fullp, outfile, file_filter)
             continue
 
         if file_filter(f):
             for pp in settings.pp_configs_to_test:
                 num += 1
-                print("DUMP " + fullp + "\n post-processing: " + pp)
+                print(f"DUMP {fullp}" + "\n post-processing: " + pp)
                 outf = os.path.join(os.getcwd(), settings.database_name,
                     utils.hashing(fullp, pp))
 
@@ -106,7 +106,7 @@ def process_dir(d, outfile, file_filter):
                 outfile.write("assimp dump "+"-"*80+"\n")
                 outfile.flush()
                 if subprocess.call(cmd, stdout=outfile, stderr=outfile, shell=False):
-                    print("Failure processing " + fullp)
+                    print(f"Failure processing {fullp}")
 
                     # spit out an empty file to indicate that this failure is expected
                     with open(outf,'wb') as f:
@@ -121,7 +121,9 @@ def make_zip():
     compression to minimize the file size. """
 
     num = 0
-    zipout = zipfile.ZipFile(settings.database_name + ".zip", "w", zipfile.ZIP_DEFLATED)
+    zipout = zipfile.ZipFile(
+        f"{settings.database_name}.zip", "w", zipfile.ZIP_DEFLATED
+    )
     for f in os.listdir(settings.database_name):
         p = os.path.join(settings.database_name, f)
         zipout.write(p, f)
@@ -145,7 +147,7 @@ def extract_zip():
     """Unzip <settings.database_name>.zip to
     ./<settings.database_name>"""
     try:
-        zipout = zipfile.ZipFile(settings.database_name + ".zip", "r", 0)
+        zipout = zipfile.ZipFile(f"{settings.database_name}.zip", "r", 0)
         zipout.extractall(path=settings.database_name)
     except (RuntimeError,IOError) as r:
         print(r)
@@ -162,11 +164,15 @@ def gen_db(ext_list,outfile):
     except OSError:
         pass
 
-    num = 0
-    for tp in settings.model_directories:
-        num += process_dir(tp, outfile,
-            lambda x: os.path.splitext(x)[1].lower() in ext_list and not x in settings.files_to_ignore)
-
+    num = sum(
+        process_dir(
+            tp,
+            outfile,
+            lambda x: os.path.splitext(x)[1].lower() in ext_list
+            and x not in settings.files_to_ignore,
+        )
+        for tp in settings.model_directories
+    )
     print("="*60)
     print("Updated {0} entries".format(num))
         
@@ -175,7 +181,7 @@ def gen_db(ext_list,outfile):
 if __name__ == "__main__":
     def clean(f):
         f = f.strip("* \'")
-        return "."+f if f[:1] != '.' else f
+        return f".{f}" if f[:1] != '.' else f
 
     if len(sys.argv) <= 1 or sys.argv[1] == "--help" or sys.argv[1] == "-h":
         print(usage)

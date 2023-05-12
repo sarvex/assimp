@@ -130,14 +130,15 @@ def get_cpp_type(field,schema):
     if not isobjref:
         base += '::Out'
     if field.optional:
-        base = 'Maybe< '+base+' >'
-        
+        base = f'Maybe< {base} >'
+
     return base
 
 def generate_fields(entity,schema):
-    fields = []
-    for e in entity.members:
-        fields.append('\t\t{type} {name};'.format(type=get_cpp_type(e,schema),name=e.name))
+    fields = [
+        '\t\t{type} {name};'.format(type=get_cpp_type(e, schema), name=e.name)
+        for e in entity.members
+    ]
     return '\n'.join(fields)
 
 def handle_unset_args(field,entity,schema,argnum):
@@ -145,10 +146,8 @@ def handle_unset_args(field,entity,schema,argnum):
     # if someone derives from this class, check for derived fields.
     if any(entity.name==e.parent for e in schema.entities.values()):
         n += template_allow_derived.format(type=entity.name,argcnt=len(entity.members),argnum=argnum)
-    
-    if not field.optional:
-        return n+''
-    return n+template_allow_optional.format()
+
+    return f'{n}' if not field.optional else n+template_allow_optional.format()
 
 def get_single_conversion(field,schema,argnum=0,classname='?'):
     name = field.name
@@ -270,11 +269,11 @@ def work(filename):
 
     sorted_entities = sort_entity_list(schema)
     for entity in sorted_entities:
-        parent = entity.parent+',' if entity.parent else ''
+        parent = f'{entity.parent},' if entity.parent else ''
 
         if ( entity.name in cpp_types ):
-            entity.name = entity.name + "_t"
-            print( "renaming " + entity.name)
+            entity.name = f"{entity.name}_t"
+            print(f"renaming {entity.name}")
         if entity.name in schema.whitelist:
             converters += template_converter.format(type=entity.name,contents=gen_converter(entity,schema))
             schema_table.append(template_schema.format(type=entity.name,normalized_name=entity.name.lower(),argcnt=len(entity.members)))
@@ -292,7 +291,7 @@ def work(filename):
         with open(output_file_h,'wt') as outp:
             # can't use format() here since the C++ code templates contain single, unescaped curly brackets
             outp.write(inp.read().replace('{predefs}',predefs).replace('{types}',typedefs).replace('{entities}',entities).replace('{converter-decl}',stub_decls))
-    
+
     with open(input_template_cpp,'rt') as inp:
         with open(output_file_cpp,'wt') as outp:
             outp.write(inp.read().replace('{schema-static-table}',schema_table).replace('{converter-impl}',converters))

@@ -105,7 +105,7 @@ def GetType(type, prefix='c_'):
         t = types[t]
     t = prefix + t
     while type.endswith('*'):
-        t = "POINTER(" + t + ")"
+        t = f"POINTER({t})"
         type = type[:-1]
     return t
     
@@ -120,13 +120,12 @@ def restructure( match ):
         if type is None:
            return ''
     if match.group("index"):
-        type = type + "*" + match.group("index")
-        
-    result = ""
-    for name in match.group("name").split(','):
-        result += "(\"" + name.strip() + "\", "+ type + "),"
-    
-    return result
+        type = f"{type}*" + match.group("index")
+
+    return "".join(
+        "(\"" + name.strip() + "\", " + type + "),"
+        for name in match.group("name").split(',')
+    )
 
 RErestruc = re.compile(r''
                 r'(?P<struct>C_STRUCT\s|C_ENUM\s|)'                     #  [C_STRUCT]
@@ -257,9 +256,10 @@ def Structify(fileName):
              
     return result   
 
-text = "#-*- coding: UTF-8 -*-\n\n"
-text += "from ctypes import POINTER, c_int, c_uint, c_size_t, c_char, c_float, Structure, c_char_p, c_double, c_ubyte\n\n"
-
+text = (
+    "#-*- coding: UTF-8 -*-\n\n"
+    + "from ctypes import POINTER, c_int, c_uint, c_size_t, c_char, c_float, Structure, c_char_p, c_double, c_ubyte\n\n"
+)
 structs1 = ""
 structs2 = ""
 structs3 = ""
@@ -283,8 +283,6 @@ for fileName in files:
 
 text += structs1 + structs2 + structs3 + structs4
 
-file = open('structs.py', 'w')
-file.write(text)
-file.close()
-
+with open('structs.py', 'w') as file:
+    file.write(text)
 print("Generation done. You can now review the file 'structs.py' and merge it.")

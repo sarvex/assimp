@@ -589,7 +589,7 @@ class PyAssimp3DViewer:
         for attribute in attributes:
             location = glGetAttribLocation(shader, attribute)
             if location in (None, -1):
-                raise RuntimeError('No attribute: %s' % attribute)
+                raise RuntimeError(f'No attribute: {attribute}')
             setattr(shader, attribute, location)
 
     @staticmethod
@@ -626,15 +626,14 @@ class PyAssimp3DViewer:
 
     def get_color_id(self):
         id = random.randint(0, 256 * 256 * 256)
-        if id not in self.colorid2node:
-            return id
-        else:
-            return self.get_color_id()
+        return id if id not in self.colorid2node else self.get_color_id()
 
     def glize(self, scene, node):
 
-        logger.info("Loading node <%s>" % node)
-        node.selected = True if self.currently_selected and self.currently_selected == node else False
+        logger.info(f"Loading node <{node}>")
+        node.selected = bool(
+            self.currently_selected and self.currently_selected == node
+        )
 
         node.transformation = node.transformation.astype(numpy.float32)
 
@@ -649,7 +648,7 @@ class PyAssimp3DViewer:
             # retrieve the ASSIMP camera object
             [cam] = [c for c in scene.cameras if c.name == node.name]
             node.type = CAMERA
-            logger.info("Added camera <%s>" % node.name)
+            logger.info(f"Added camera <{node.name}>")
             logger.info("Camera position: %.3f, %.3f, %.3f" % tuple(node.transformation[:, 3][:3].tolist()))
             self.cameras.append(node)
             node.clipplanenear = cam.clipplanenear
@@ -661,7 +660,8 @@ class PyAssimp3DViewer:
                 node.transformation = numpy.dot(node.transformation, ROTATION_180_X)
             else:
                 raise RuntimeError(
-                    "I do not know how to normalize this camera orientation: lookat=%s, up=%s" % (cam.lookat, cam.up))
+                    f"I do not know how to normalize this camera orientation: lookat={cam.lookat}, up={cam.up}"
+                )
 
             if cam.aspect == 0.0:
                 logger.warning("Camera aspect not set. Setting to default 4:3")
@@ -678,7 +678,7 @@ class PyAssimp3DViewer:
             self.glize(scene, child)
 
     def load_model(self, path, postprocess=aiProcessPreset_TargetRealtime_MaxQuality):
-        logger.info("Loading model:" + path + "...")
+        logger.info(f"Loading model:{path}...")
 
         if postprocess:
             self.scene = pyassimp.load(path, processing=postprocess)
@@ -689,14 +689,16 @@ class PyAssimp3DViewer:
         scene = self.scene
         # log some statistics
         logger.info("  meshes: %d" % len(scene.meshes))
-        logger.info("  total faces: %d" % sum([len(mesh.faces) for mesh in scene.meshes]))
+        logger.info(
+            "  total faces: %d" % sum(len(mesh.faces) for mesh in scene.meshes)
+        )
         logger.info("  materials: %d" % len(scene.materials))
         self.bb_min, self.bb_max = get_bounding_box(self.scene)
-        logger.info("  bounding box:" + str(self.bb_min) + " - " + str(self.bb_max))
+        logger.info(f"  bounding box:{str(self.bb_min)} - {str(self.bb_max)}")
 
         self.scene_center = [(a + b) / 2. for a, b in zip(self.bb_min, self.bb_max)]
 
-        for index, mesh in enumerate(scene.meshes):
+        for mesh in scene.meshes:
             self.prepare_gl_buffers(mesh)
 
         self.glize(scene, scene.rootnode)
@@ -710,7 +712,7 @@ class PyAssimp3DViewer:
         self.current_cam_index = (self.current_cam_index + 1) % len(self.cameras)
         self.current_cam = self.cameras[self.current_cam_index]
         self.set_camera_projection(self.current_cam)
-        logger.info("Switched to camera <%s>" % self.current_cam)
+        logger.info(f"Switched to camera <{self.current_cam}>")
 
     def set_overlay_projection(self):
         glViewport(0, 0, self.w, self.h)
@@ -803,24 +805,6 @@ class PyAssimp3DViewer:
         self.render_grid()
 
         self.recursive_render(self.scene.rootnode, None, mode=HELPERS)
-
-        ### First, the silhouette
-
-        if False:
-            shader = self.silhouette_shader
-
-            # glDepthMask(GL_FALSE)
-            glCullFace(GL_FRONT)  # cull front faces
-
-            glUseProgram(shader)
-            glUniform1f(shader.u_bordersize, 0.01)
-
-            glUniformMatrix4fv(shader.u_viewProjectionMatrix, 1, GL_TRUE,
-                               numpy.dot(self.projection_matrix, self.view_matrix))
-
-            self.recursive_render(self.scene.rootnode, shader, mode=SILHOUETTE)
-
-            glUseProgram(0)
 
         ### Then, inner shading
         # glDepthMask(GL_TRUE)
@@ -998,32 +982,32 @@ class PyAssimp3DViewer:
         ###
         if node.type == MESH:
 
-            for mesh in node.meshes:
+            stride = 24  # 6 * 4 bytes
 
-                stride = 24  # 6 * 4 bytes
+            for mesh in node.meshes:
 
                 if node.selected and mode == SILHOUETTE:
                     glUniform4f(shader.u_materialDiffuse, 1.0, 0.0, 0.0, 1.0)
                     glUniformMatrix4fv(shader.u_modelViewMatrix, 1, GL_TRUE,
                                        numpy.dot(self.view_matrix, m))
 
+                elif mode == COLORS:
+                    colorid = self.node2colorid[node.name]
+                    r, g, b = self.get_rgb_from_colorid(colorid)
+                    glUniform4f(shader.u_materialDiffuse, r / 255.0, g / 255.0, b / 255.0, 1.0)
+                elif mode == SILHOUETTE:
+                    glUniform4f(shader.u_materialDiffuse, .0, .0, .0, 1.0)
                 else:
-                    if mode == COLORS:
-                        colorid = self.node2colorid[node.name]
-                        r, g, b = self.get_rgb_from_colorid(colorid)
-                        glUniform4f(shader.u_materialDiffuse, r / 255.0, g / 255.0, b / 255.0, 1.0)
-                    elif mode == SILHOUETTE:
-                        glUniform4f(shader.u_materialDiffuse, .0, .0, .0, 1.0)
-                    else:
-                        if node.selected:
-                            diffuse = (1.0, 0.0, 0.0, 1.0)  # selected nodes in red
-                        else:
-                            diffuse = mesh.material.properties["diffuse"]
-                        if len(diffuse) == 3:  # RGB instead of expected RGBA
-                            diffuse.append(1.0)
-                        glUniform4f(shader.u_materialDiffuse, *diffuse)
-                        # if ambient:
-                        #    glUniform4f( shader.Material_ambient, *mat["ambient"] )
+                    diffuse = (
+                        (1.0, 0.0, 0.0, 1.0)
+                        if node.selected
+                        else mesh.material.properties["diffuse"]
+                    )
+                    if len(diffuse) == 3:  # RGB instead of expected RGBA
+                        diffuse.append(1.0)
+                    glUniform4f(shader.u_materialDiffuse, *diffuse)
+                                    # if ambient:
+                                    #    glUniform4f( shader.Material_ambient, *mat["ambient"] )
 
                 if mode == BASE:  # not in COLORS or SILHOUETTE
                     normal_matrix = linalg.inv(numpy.dot(self.view_matrix, m)[0:3, 0:3]).transpose()
@@ -1077,11 +1061,7 @@ class PyAssimp3DViewer:
         self.update_node_select(self.scene.rootnode)
 
     def update_node_select(self, node):
-        if node is self.currently_selected:
-            node.selected = True
-        else:
-            node.selected = False
-
+        node.selected = node is self.currently_selected
         for child in node.children:
             self.update_node_select(child)
 
@@ -1113,12 +1093,11 @@ class PyAssimp3DViewer:
 
         for evt in pygame.event.get():
             if evt.type == pygame.MOUSEBUTTONDOWN and evt.button == LEFT_BUTTON:
-                hovered = self.get_hovered_node(mousex, self.h - mousey)
-                if hovered:
+                if hovered := self.get_hovered_node(mousex, self.h - mousey):
                     if self.currently_selected and self.currently_selected == hovered:
                         self.select_node(None)
                     else:
-                        logger.info("Node %s selected" % hovered)
+                        logger.info(f"Node {hovered} selected")
                         self.select_node(hovered)
                 else:
                     self.is_rotating = True
@@ -1171,10 +1150,7 @@ class PyAssimp3DViewer:
         if key == pygame.K_TAB:
             self.cycle_cameras()
 
-        if key in [pygame.K_ESCAPE, pygame.K_q]:
-            return False
-
-        return True
+        return key not in [pygame.K_ESCAPE, pygame.K_q]
 
     def controls_3d(self, dx, dy, zooming_one_shot=False):
         """ Orbiting the camera is implemented the following way:
@@ -1195,8 +1171,6 @@ class PyAssimp3DViewer:
           - Rx is the rotation around X in the (translated) camera frame """
 
         CAMERA_TRANSLATION_FACTOR = 0.01
-        CAMERA_ROTATION_FACTOR = 0.01
-
         if not (self.is_rotating or self.is_panning or self.is_zooming):
             return
 
@@ -1204,6 +1178,8 @@ class PyAssimp3DViewer:
         distance = numpy.linalg.norm(self.focal_point - current_pos)
 
         if self.is_rotating:
+            CAMERA_ROTATION_FACTOR = 0.01
+
             rotation_camera_x = dy * CAMERA_ROTATION_FACTOR
             rotation_world_z = dx * CAMERA_ROTATION_FACTOR
             world_z_rotation = transformations.euler_matrix(0, 0, rotation_world_z)
@@ -1288,14 +1264,16 @@ def main(model, width, height):
 
         ## GUI text display
         app.switch_to_overlay()
-        app.showtext("Active camera: %s" % str(app.current_cam), 10, app.h - 30)
+        app.showtext(f"Active camera: {str(app.current_cam)}", 10, app.h - 30)
         if app.currently_selected:
-            app.showtext("Selected node: %s" % app.currently_selected, 10, app.h - 50)
+            app.showtext(f"Selected node: {app.currently_selected}", 10, app.h - 50)
             pos = app.h - 70
 
-            app.showtext("(%sm, %sm, %sm)" % (app.currently_selected.transformation[0, 3],
-                                              app.currently_selected.transformation[1, 3],
-                                              app.currently_selected.transformation[2, 3]), 30, pos)
+            app.showtext(
+                f"({app.currently_selected.transformation[0, 3]}m, {app.currently_selected.transformation[1, 3]}m, {app.currently_selected.transformation[2, 3]}m)",
+                30,
+                pos,
+            )
 
         app.switch_from_overlay()
 
@@ -1309,8 +1287,8 @@ def main(model, width, height):
 #########################################################################
 
 if __name__ == '__main__':
-    if not len(sys.argv) > 1:
-        print("Usage: " + __file__ + " <model>")
+    if len(sys.argv) <= 1:
+        print(f"Usage: {__file__} <model>")
         sys.exit(2)
 
     main(model=sys.argv[1], width=1024, height=768)

@@ -119,7 +119,7 @@ class results:
         *args is format()ting args for msg
 
         """
-        print("[FAILURE] " + messages[msg].format(*args))
+        print(f"[FAILURE] {messages[msg].format(*args)}")
         self.failures.append((failfile, filename_expect, pp))
 
 
@@ -131,7 +131,7 @@ class results:
         *args is format()ing args for msg.
 
         """
-        print("[SUCCESS] " + messages[msg].format(*args))
+        print(f"[SUCCESS] {messages[msg].format(*args)}")
         self.success.append(f)
 
 
@@ -147,8 +147,7 @@ class results:
 
         with open(os.path.join('..', 'results',outfilename_failur), "wt") as f:
             f.write("ORIGINAL FILE;EXPECTED DUMP\n")
-            f.writelines(map(
-                lambda x: x[0] + ' ' + x[2] + ";" + x[1] + "\n", self.failures))
+            f.writelines(map(lambda x: f'{x[0]} {x[2]};{x[1]}' + "\n", self.failures))
 
         if self.failures:
            print("\nSee " + settings.results + "\\" + outfilename_failur
@@ -156,11 +155,11 @@ class results:
 
     def hasFailures( self ):
         """ Return True, if any failures there. """
-        return 0 != len( self.failures )
+        return len( self.failures ) != 0
 
 # -------------------------------------------------------------------------------
 def setEnvVar( var, value ):
-    print ( "set var " + var +" to" + value)
+    print(f"set var {var} to{value}")
     Environment[ var ] = value
 
 # -------------------------------------------------------------------------------
@@ -168,12 +167,14 @@ def getEnvVar( var ):
     if var in Environment:
         return Environment[ var ]
     else:
-        print ( "Error: cannot find " + var )
+        print(f"Error: cannot find {var}")
     return ""
     
 # -------------------------------------------------------------------------------
 def prepare_output_dir(fullpath, myhash, app):
-    outfile = os.path.join(settings.results, "tmp", os.path.split(fullpath)[1] + "_" + myhash)
+    outfile = os.path.join(
+        settings.results, "tmp", f"{os.path.split(fullpath)[1]}_{myhash}"
+    )
     try:
         os.mkdir(outfile)
     except OSError:
@@ -186,16 +187,16 @@ def prepare_output_dir(fullpath, myhash, app):
 def process_dir(d, outfile_results, zipin, result ):
     shellparams = {'stdout':outfile_results, 'stderr':outfile_results, 'shell':False}
 
-    print("Processing directory " + d)
+    print(f"Processing directory {d}")
     all = ""
     for f in sorted(os.listdir(d)):
         fullpath = os.path.join(d, f)
-        if os.path.isdir(fullpath) and not f[:1] == '.':
+        if os.path.isdir(fullpath) and f[:1] != '.':
             process_dir(fullpath, outfile_results, zipin, result)
             continue
-                
+
         if f in settings.files_to_ignore or os.path.splitext(f)[1] in settings.exclude_extensions:
-            print("Ignoring " + f)
+            print(f"Ignoring {f}")
             return
 
         for pppreset in settings.pp_configs_to_test:
@@ -209,8 +210,9 @@ def process_dir(d, outfile_results, zipin, result ):
                    failure = True
             except KeyError:
                 # TODO(acgessler): Keep track of this and report as error in the end.
-                print("Didn't find "+fullpath+" (Hash is "+filehash+") in database. Outdated "+\
-                    "regression database? Use gen_db.zip to re-generate.")
+                print(
+                    f"Didn't find {fullpath} (Hash is {filehash}) in database. Outdated regression database? Use gen_db.zip to re-generate."
+                )
                 continue
 
             print("-"*60 + "\n  " + os.path.realpath(fullpath) + " pp: " + pppreset)
@@ -224,7 +226,7 @@ def process_dir(d, outfile_results, zipin, result ):
                 "dump",
                 fullpath, outfile_actual, "-b", "-s", "-l" ] +\
                 pppreset.split()
-            print( "command = " + str( command ) )
+            print(f"command = {str(command)}")
             r = subprocess.call(command, **shellparams)
             outfile_results.flush()
 
@@ -236,7 +238,7 @@ def process_dir(d, outfile_results, zipin, result ):
                 result.fail(fullpath, outfile_expect, pppreset, EXPECTED_FAILURE_NOT_MET)
                 outfile_results.write("Expected import to fail\n")
                 continue
-            elif failure and r:
+            elif failure:
                 result.ok(fullpath, pppreset, EXPECTED_FAILURE)
                 outfile_results.write("Failed as expected, skipping.\n")
                 continue
@@ -282,15 +284,16 @@ def del_folder_with_contents(folder):
 def run_test():
     tmp_target_path = os.path.join(settings.results, "tmp")
     try:
-        print( "try to make " + tmp_target_path )
+        print(f"try to make {tmp_target_path}")
         os.mkdir(tmp_target_path)
     except OSError as oerr:
         # clear contents if tmp folder exists already
        del_folder_with_contents(tmp_target_path)
 
     try:
-        zipin = zipfile.ZipFile(settings.database_name + ".zip",
-            "r", zipfile.ZIP_STORED)
+        zipin = zipfile.ZipFile(
+            f"{settings.database_name}.zip", "r", zipfile.ZIP_STORED
+        )
     except IOError:
         print("Regression database ", settings.database_name,
               ".zip was not found")
@@ -302,19 +305,13 @@ def run_test():
             process_dir(tp, outfile, zipin, res)
 
     res.report_results()
-    if res.hasFailures():
-        return 1
-
-    return 0
+    return 1 if res.hasFailures() else 0
 
 # -------------------------------------------------------------------------------
 if __name__ == "__main__":
-    if len(sys.argv) > 1:
-        assimp_bin_path = sys.argv[1]
-    else:
-        assimp_bin_path = 'assimp'
+    assimp_bin_path = sys.argv[1] if len(sys.argv) > 1 else 'assimp'
     setEnvVar("assimp_path", assimp_bin_path)
-    print('Using assimp binary: ' + assimp_bin_path)
+    print(f'Using assimp binary: {assimp_bin_path}')
     sys.exit( run_test() )
 
 # vim: ai ts=4 sts=4 et sw=4

@@ -58,11 +58,10 @@ def make_tuple(ai_obj, type = None):
         else:
             res = [getattr(ai_obj, e[0]) for e in ai_obj._fields_]
             res = [res[i:i+3] for i in xrange(0,9,3)]
+    elif numpy:
+        res = numpy.array([getattr(ai_obj, e[0]) for e in ai_obj._fields_])
     else:
-        if numpy:
-            res = numpy.array([getattr(ai_obj, e[0]) for e in ai_obj._fields_])
-        else:
-            res = [getattr(ai_obj, e[0]) for e in ai_obj._fields_]
+        res = [getattr(ai_obj, e[0]) for e in ai_obj._fields_]
 
     return res
 
@@ -96,8 +95,12 @@ def _is_init_type(obj):
     elif not bool(obj):
         return False
     tname = obj.__class__.__name__
-    return not (tname[:2] == 'c_' or tname == 'Structure' \
-            or tname == 'POINTER') and not isinstance(obj, (int, str, bytes))
+    return (
+        tname[:2] != 'c_'
+        and tname != 'Structure'
+        and tname != 'POINTER'
+        and not isinstance(obj, (int, str, bytes))
+    )
 
 def _init(self, target = None, parent = None):
     """
@@ -120,18 +123,17 @@ def _init(self, target = None, parent = None):
             continue
 
         if m.startswith('mNum'):
-            if 'm' + m[4:] in dirself:
-                continue # will be processed later on
-            else:
+            if f'm{m[4:]}' not in dirself:
                 name = m[1:].lower()
 
                 obj = getattr(self, m)
                 setattr(target, name, obj)
-                continue
-
+            continue # will be processed later on
         if m == 'mName':
             target.name = str(_convert_assimp_string(self.mName))
-            target.__class__.__repr__ = lambda x: str(x.__class__) + "(" + getattr(x, 'name','') + ")"
+            target.__class__.__repr__ = (
+                lambda x: f"{str(x.__class__)}(" + getattr(x, 'name', '') + ")"
+            )
             target.__class__.__str__ = lambda x: getattr(x, 'name', '')
             continue
 
@@ -142,19 +144,21 @@ def _init(self, target = None, parent = None):
         # Create tuples
         if isinstance(obj, structs.assimp_structs_as_tuple):
             setattr(target, name, make_tuple(obj))
-            logger.debug(str(self) + ": Added array " + str(getattr(target, name)) +  " as self." + name.lower())
+            logger.debug(
+                f"{str(self)}: Added array {str(getattr(target, name))} as self.{name.lower()}"
+            )
             continue
 
         if m.startswith('m') and len(m) > 1 and m[1].upper() == m[1]:
 
             if name == "parent":
                 setattr(target, name, parent)
-                logger.debug("Added a parent as self." + name)
+                logger.debug(f"Added a parent as self.{name}")
                 continue
 
-            if helper.hasattr_silent(self, 'mNum' + m[1:]):
+            if helper.hasattr_silent(self, f'mNum{m[1:]}'):
 
-                length =  getattr(self, 'mNum' + m[1:])
+                length = getattr(self, f'mNum{m[1:]}')
 
                 # -> special case: properties are
                 # stored as a dict.
@@ -165,7 +169,7 @@ def _init(self, target = None, parent = None):
 
                 if not length: # empty!
                     setattr(target, name, [])
-                    logger.debug(str(self) + ": " + name + " is an empty list.")
+                    logger.debug(f"{str(self)}: {name} is an empty list.")
                     continue
 
 
@@ -174,16 +178,22 @@ def _init(self, target = None, parent = None):
                         if numpy:
                             setattr(target, name, numpy.array([make_tuple(obj[i]) for i in range(length)], dtype=numpy.float32))
 
-                            logger.debug(str(self) + ": Added an array of numpy arrays (type "+ str(type(obj)) + ") as self." + name)
+                            logger.debug(
+                                f"{str(self)}: Added an array of numpy arrays (type {str(type(obj))}) as self.{name}"
+                            )
                         else:
                             setattr(target, name, [make_tuple(obj[i]) for i in range(length)])
 
-                            logger.debug(str(self) + ": Added a list of lists (type "+ str(type(obj)) + ") as self." + name)
+                            logger.debug(
+                                f"{str(self)}: Added a list of lists (type {str(type(obj))}) as self.{name}"
+                            )
 
                     else:
                         setattr(target, name, [obj[i] for i in range(length)]) #TODO: maybe not necessary to recreate an array?
 
-                        logger.debug(str(self) + ": Added list of " + str(obj) + " " + name + " as self." + name + " (type: " + str(type(obj)) + ")")
+                        logger.debug(
+                            f"{str(self)}: Added list of {str(obj)} {name} as self.{name} (type: {str(type(obj))})"
+                        )
 
                         # initialize array elements
                         try:
@@ -198,12 +208,14 @@ def _init(self, target = None, parent = None):
 
 
                 except IndexError:
-                    logger.error("in " + str(self) +" : mismatch between mNum" + name + " and the actual amount of data in m" + name + ". This may be due to version mismatch between libassimp and pyassimp. Quitting now.")
+                    logger.error(
+                        f"in {str(self)} : mismatch between mNum{name} and the actual amount of data in m{name}. This may be due to version mismatch between libassimp and pyassimp. Quitting now."
+                    )
                     sys.exit(1)
 
                 except ValueError as e:
 
-                    logger.error("In " + str(self) +  "->" + name + ": " + str(e) + ". Quitting now.")
+                    logger.error(f"In {str(self)}->{name}: {str(e)}. Quitting now.")
                     if "setting an array element with a sequence" in str(e):
                         logger.error("Note that pyassimp does not currently "
                                      "support meshes with mixed triangles "
@@ -216,7 +228,7 @@ def _init(self, target = None, parent = None):
 
             else: # starts with 'm' but not iterable
                 setattr(target, name, obj)
-                logger.debug("Added " + name + " as self." + name + " (type: " + str(type(obj)) + ")")
+                logger.debug(f"Added {name} as self.{name} (type: {str(type(obj))})")
 
                 if _is_init_type(obj):
                     call_init(obj, target)
@@ -262,7 +274,7 @@ def pythonize_assimp(type, obj, scene):
 
         node = getnode(scene.rootnode, obj.name)
         if not node:
-            raise AssimpError("Object " + str(obj) + " has no associated node!")
+            raise AssimpError(f"Object {str(obj)} has no associated node!")
         setattr(obj, "transformation", node.transformation)
 
 def recur_pythonize(node, scene):
@@ -525,7 +537,7 @@ def _get_properties(properties, length):
             arr = ctypes.cast(p.mData,
                               ctypes.POINTER(ctypes.c_float * int(p.mDataLength/ctypes.sizeof(ctypes.c_float)))
                               ).contents
-            value = [x for x in arr]
+            value = list(arr)
         elif p.mType == 3: #string can't be an array
             value = _convert_assimp_string(ctypes.cast(p.mData, ctypes.POINTER(structs.MaterialPropertyString)).contents)
 
@@ -533,7 +545,7 @@ def _get_properties(properties, length):
             arr = ctypes.cast(p.mData,
                               ctypes.POINTER(ctypes.c_int * int(p.mDataLength/ctypes.sizeof(ctypes.c_int)))
                               ).contents
-            value = [x for x in arr]
+            value = list(arr)
         else:
             value = p.mData[:p.mDataLength]
 

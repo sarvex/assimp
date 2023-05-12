@@ -30,7 +30,7 @@ extensions = ['.3ds', '.x', '.lwo', '.obj', '.md5mesh', '.dxf', '.ply', '.stl',
 def run_tests():
     ok, err = 0, 0
     for path in basepaths:
-        print("Looking for models in %s..." % path)
+        print(f"Looking for models in {path}...")
         for root, dirs, files in os.walk(path):
             for afile in files:
                 base, ext = os.path.splitext(afile)
@@ -43,10 +43,8 @@ def run_tests():
                         print(error)
                         err += 1
                     except Exception:
-                        print("Error encountered while loading <%s>"
-                              % os.path.join(root, afile))
-    print('** Loaded %s models, got controlled errors for %s files'
-          % (ok, err))
+                        print(f"Error encountered while loading <{os.path.join(root, afile)}>")
+    print(f'** Loaded {ok} models, got controlled errors for {err} files')
 
 
 if __name__ == '__main__':

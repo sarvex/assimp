@@ -31,11 +31,7 @@ def process_dir(thisdir):
                 res += process_dir(fullpath) 
             continue
 
-        # import twice, importing the same file again introduces extra risk
-        # to crash due to garbage data lying around in the importer.
-        command.append(fullpath)
-        command.append(fullpath)
-
+        command.extend((fullpath, fullpath))
     if len(command)>2:
         # testbatchload returns always 0 if more than one file in the list worked.
         # however, if it should segfault, the OS will return something not 0.

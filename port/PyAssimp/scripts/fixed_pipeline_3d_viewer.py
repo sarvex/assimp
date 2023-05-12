@@ -67,10 +67,8 @@ class GLRenderer():
         indices.
         """
 
-        mesh.gl = {}
+        mesh.gl = {"vertices": glGenBuffers(1)}
 
-        # Fill the buffer for vertex positions
-        mesh.gl["vertices"] = glGenBuffers(1)
         glBindBuffer(GL_ARRAY_BUFFER, mesh.gl["vertices"])
         glBufferData(GL_ARRAY_BUFFER, 
                     mesh.vertices,
@@ -96,7 +94,7 @@ class GLRenderer():
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,0)
 
     def load_model(self, path, postprocess = None):
-        logger.info("Loading model:" + path + "...")
+        logger.info(f"Loading model:{path}...")
 
         if postprocess:
             self.scene = pyassimp.load(path, processing=postprocess)
@@ -107,14 +105,16 @@ class GLRenderer():
         scene = self.scene
         #log some statistics
         logger.info("  meshes: %d" % len(scene.meshes))
-        logger.info("  total faces: %d" % sum([len(mesh.faces) for mesh in scene.meshes]))
+        logger.info(
+            "  total faces: %d" % sum(len(mesh.faces) for mesh in scene.meshes)
+        )
         logger.info("  materials: %d" % len(scene.materials))
         self.bb_min, self.bb_max = get_bounding_box(self.scene)
-        logger.info("  bounding box:" + str(self.bb_min) + " - " + str(self.bb_max))
+        logger.info(f"  bounding box:{str(self.bb_min)} - {str(self.bb_max)}")
 
         self.scene_center = [(a + b) / 2. for a, b in zip(self.bb_min, self.bb_max)]
 
-        for index, mesh in enumerate(scene.meshes):
+        for mesh in scene.meshes:
             self.prepare_gl_buffers(mesh)
 
         # Finally release the model
@@ -126,7 +126,7 @@ class GLRenderer():
             return None
         self.current_cam_index = (self.current_cam_index + 1) % len(self.scene.cameras)
         cam = self.scene.cameras[self.current_cam_index]
-        logger.info("Switched to camera " + str(cam))
+        logger.info(f"Switched to camera {str(cam)}")
         return cam
 
     def set_default_camera(self):
@@ -363,8 +363,8 @@ class GLRenderer():
 
 
 if __name__ == '__main__':
-    if not len(sys.argv) > 1:
-        print("Usage: " + __file__ + " <model>")
+    if len(sys.argv) <= 1:
+        print(f"Usage: {__file__} <model>")
         sys.exit(0)
 
     glrender = GLRenderer()

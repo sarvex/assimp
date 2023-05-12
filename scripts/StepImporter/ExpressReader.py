@@ -85,7 +85,7 @@ class Field:
         self.type = type
         self.optional = optional
         self.collection = collection
-        self.fullspec = (self.collection+' ' if self.collection else '') + self.type 
+        self.fullspec = (f'{self.collection} ' if self.collection else '') + self.type 
 
 class Type:
     def __init__(self,name,aggregate,equals,enums):
@@ -97,20 +97,20 @@ class Type:
 
 def read(filename, silent=False):
     schema = Schema()
-    print( "Try to read EXPRESS schema file" + filename)
+    print(f"Try to read EXPRESS schema file{filename}")
     with open(filename,'rt') as inp: 
         contents = inp.read()
         types = re.findall(re_match_type,contents)
         for name,aggregate,equals,enums in types:
             schema.types[name] = Type(name,aggregate,equals,enums)
-            
+
         entities = re.findall(re_match_entity,contents)
         for name,parent,fields_raw in entities:
             print('process entity {0}, parent is {1}'.format(name,parent)) if not silent else None
             fields = re.findall(re_match_field,fields_raw)
             members = [Field(name,type,opt,coll) for name, opt, coll, type in fields]
             print('  got {0} fields'.format(len(members))) if not silent else None
-            
+
             schema.entities[name] = Entity(name,parent,members)
     return schema
 
